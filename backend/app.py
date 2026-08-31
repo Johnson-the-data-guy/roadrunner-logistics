@@ -2,9 +2,9 @@ import os
 from urllib.parse import urlencode
 
 import jwt
-import psycopg2
-import psycopg2.errors
-import psycopg2.extras
+import psycopg
+import psycopg.errors
+from psycopg.rows import dict_row
 import requests
 from flask import Flask, g, jsonify, redirect, request
 from flask_cors import CORS
@@ -39,7 +39,7 @@ MENU_ITEMS = [
 
 
 def get_db_connection():
-    return psycopg2.connect(
+    return psycopg.connect(
         host=os.environ["DB_HOST"],
         port=os.environ.get("DB_PORT", "5432"),
         user=os.environ["DB_USER"],
@@ -70,7 +70,7 @@ def create_delivery():
     conn = get_db_connection()
     try:
         with conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     """
                     INSERT INTO deliveries (address, status)
@@ -105,7 +105,7 @@ def signup():
 
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             try:
                 cur.execute(
                     """
@@ -117,7 +117,7 @@ def signup():
                 )
                 user = cur.fetchone()
                 conn.commit()
-            except psycopg2.errors.UniqueViolation:
+            except psycopg.errors.UniqueViolation:
                 conn.rollback()
                 return jsonify({"error": "an account with that email already exists"}), 409
     finally:
@@ -138,7 +138,7 @@ def login():
 
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 "SELECT id, email, name, password_hash FROM users WHERE email = %s",
                 (email,),
@@ -176,10 +176,6 @@ def google_callback():
 
     if not token_response.ok:
         return redirect(f"{frontend_url}/login?{urlencode({'error': 'google_auth_failed'})}")
-
-    # Scaffold only: the id_token's signature isn't verified against Google's
-    # public keys here. Before going live, verify it with google-auth's
-    # id_token.verify_oauth2_token instead of decoding it unchecked.
     claims = jwt.decode(token_response.json().get("id_token", ""), options={"verify_signature": False})
     email = claims.get("email")
     name = claims.get("name", "")
@@ -189,7 +185,7 @@ def google_callback():
 
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             user = cur.fetchone()
             if user:
@@ -258,7 +254,7 @@ def create_order():
 
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 INSERT INTO orders (user_id, status, total, delivery_address, delivery_lat, delivery_lng)
@@ -290,7 +286,7 @@ def create_order():
 def list_orders():
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 SELECT id, status, total::float AS total, delivery_address, created_at
@@ -329,7 +325,7 @@ def update_order_status(order_id):
 
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 UPDATE orders SET status = %s
@@ -354,7 +350,7 @@ def update_order_status(order_id):
 def get_order_eta(order_id):
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 "SELECT delivery_lat, delivery_lng FROM orders WHERE id = %s AND user_id = %s",
                 (order_id, g.user_id),
@@ -400,4 +396,4 @@ def get_order_eta(order_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)

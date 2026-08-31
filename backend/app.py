@@ -1,6 +1,6 @@
 import os
 from urllib.parse import urlencode
-
+from dotenv import load_dotenv
 import jwt
 import psycopg
 import psycopg.errors
@@ -13,7 +13,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from auth import create_token, require_auth
 from mapbox import geocode_address, get_driving_route
 from weather import check_weather
-
+load_dotenv()
 app = Flask(__name__)
 CORS(app, origins=[os.environ.get("FRONTEND_URL", "http://localhost:5173")])
 

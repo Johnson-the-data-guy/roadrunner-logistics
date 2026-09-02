@@ -18,7 +18,7 @@ app = Flask(__name__)
 CORS(app, origins=[os.environ.get("FRONTEND_URL", "http://localhost:5173")])
 
 # Roadrunner Logistics depot — fixed origin point for all delivery routing.
-DEPOT_LOCATION = {"lat": 35.0844, "lng": -106.6504}  # Albuquerque, NM
+DEPOT_LOCATION = {"lat": 9.073523, "lng": 7.475731}  # Abuja, Nigeria
 
 WEATHER_DELAY_BUFFER = 1.2  # +20% travel time when delay_risk is true
 
